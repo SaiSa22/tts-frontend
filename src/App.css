@@ -1,0 +1,67 @@
+body {
+  background-color: #f4f7f6;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  margin: 0;
+}
+
+.container {
+  background-color: white;
+  padding: 40px;
+  border-radius: 12px;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+  width: 100%;
+  max-width: 500px;
+  text-align: center;
+}
+
+h1 { color: #333; margin-bottom: 5px; }
+p { color: #666; font-size: 0.9em; margin-bottom: 25px; }
+
+textarea {
+  width: 100%;
+  padding: 15px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 16px;
+  box-sizing: border-box;
+  resize: vertical;
+  font-family: inherit;
+}
+
+textarea:focus {
+  outline: none;
+  border-color: #0069ff;
+  box-shadow: 0 0 0 3px rgba(0, 105, 255, 0.2);
+}
+
+.button-container { margin-top: 20px; }
+
+button {
+  background-color: #0069ff;
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  font-size: 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+button:hover { background-color: #0056d6; }
+button:disabled { background-color: #ccc; cursor: not-allowed; }
+
+.result-container {
+  margin-top: 30px;
+  padding: 20px;
+  background-color: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 8px;
+}
+
+audio { width: 100%; margin-top: 10px; }
+.error-message { color: #d93025; background-color: #ffe6e6; padding: 10px; margin-top: 20px; border-radius: 5px; }
+.download-link { display: inline-block; margin-top: 10px; color: #0069ff; text-decoration: none; }
