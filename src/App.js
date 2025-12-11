@@ -10,7 +10,7 @@ function App() {
   // =========================================================
   // PASTE YOUR BACKEND URL INSIDE THE QUOTES BELOW:
   // =========================================================
-  const API_URL = "https://faas-nyc1-2ef...digitaloceanspaces.com/fn-namespace/speech/convert"; 
+  const API_URL = "https://faas-nyc1-2ef2e6cc.doserverless.co/api/v1/web/fn-d690139c-c62c-4535-a31f-b6895767f7aa/speech/convert"; 
 
   const handleConvert = async () => {
     if (!text.trim()) {
