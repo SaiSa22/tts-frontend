@@ -1,38 +1,37 @@
 import React, { useState } from 'react';
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
 import './App.css';
 
 function App() {
   const [text, setText] = useState('');
   
-  // New State variables for Date and Time
-  const [date, setDate] = useState('');
-  const [startTime, setStartTime] = useState('');
-  const [endTime, setEndTime] = useState('');
+  // Initialize with current date/time objects for react-datepicker
+  const [date, setDate] = useState(new Date());
+  const [startTime, setStartTime] = useState(new Date());
+  const [endTime, setEndTime] = useState(new Date());
 
   const [audioUrl, setAudioUrl] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // =========================================================
-  // PASTE YOUR BACKEND URL INSIDE THE QUOTES BELOW:
-  // =========================================================
   const API_URL = "https://faas-nyc1-2ef2e6cc.doserverless.co/api/v1/web/fn-d690139c-c62c-4535-a31f-b6895767f7aa/speech/convert"; 
 
-  // Helper function to convert Date + Time string to Unix Timestamp (Seconds)
-  const getUnixTimestamp = (dateStr, timeStr) => {
-    const dateTime = new Date(`${dateStr}T${timeStr}`);
-    // Divide by 1000 to convert milliseconds to seconds (Unix standard)
-    return Math.floor(dateTime.getTime() / 1000);
+  // Updated Helper: Combine Date object and Time object
+  const getUnixTimestamp = (selectedDate, selectedTime) => {
+    if (!selectedDate || !selectedTime) return 0;
+    
+    const combined = new Date(selectedDate);
+    combined.setHours(selectedTime.getHours());
+    combined.setMinutes(selectedTime.getMinutes());
+    combined.setSeconds(0);
+
+    return Math.floor(combined.getTime() / 1000);
   };
 
   const handleConvert = async () => {
-    // Basic validation
     if (!text.trim()) {
       alert("Please enter some text first.");
-      return;
-    }
-    if (!date || !startTime || !endTime) {
-      alert("Please select a date, start time, and end time.");
       return;
     }
 
@@ -41,21 +40,16 @@ function App() {
     setError('');
 
     try {
-      // Convert inputs to Unix Timestamps
       const alertStart = getUnixTimestamp(date, startTime);
       const alertEnd = getUnixTimestamp(date, endTime);
 
-      // Check if End Time is before Start Time
       if (alertEnd <= alertStart) {
         throw new Error("End time must be after Start time.");
       }
 
-      // We switch to POST to send the Text + Timestamps cleanly in the body
       const response = await fetch(API_URL, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           text: text,
           alertStart: alertStart,
@@ -80,53 +74,103 @@ function App() {
     }
   };
 
+  // Styles for the side-by-side layout
+  const layoutStyle = {
+    display: 'flex',
+    gap: '20px',
+    alignItems: 'flex-start',
+    marginBottom: '20px',
+    flexWrap: 'wrap' // Allows wrapping on very small mobile screens
+  };
+
+  const leftColumnStyle = {
+    flex: 2, // Takes up twice as much space as the right column
+    minWidth: '300px'
+  };
+
+  const rightColumnStyle = {
+    flex: 1, // Takes up remaining space
+    minWidth: '200px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '15px',
+    textAlign: 'left'
+  };
+
+  const labelStyle = {
+    fontWeight: 'bold',
+    marginBottom: '5px',
+    display: 'block',
+    fontSize: '14px'
+  };
+
   return (
     <div className="App">
-      <div className="container">
+      <div className="container" style={{ maxWidth: '900px' }}> {/* Increased max-width for side-by-side */}
         <h1>Text to Speech</h1>
         <p>Powered by Azure & DigitalOcean</p>
 
-        <textarea 
-          placeholder="Type text here to convert to audio..."
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          rows="5"
-        />
-
-        {/* New Input Fields Container */}
-        <div style={{ margin: '20px 0', textAlign: 'left' }}>
-          <div style={{ marginBottom: '10px' }}>
-            <label style={{ display: 'block', fontWeight: 'bold' }}>Date:</label>
-            <input 
-              type="date" 
-              value={date} 
-              onChange={(e) => setDate(e.target.value)}
-              style={{ width: '100%', padding: '8px' }}
+        {/* SIDE BY SIDE CONTAINER */}
+        <div style={layoutStyle}>
+          
+          {/* LEFT: TEXT AREA */}
+          <div style={leftColumnStyle}>
+            <textarea 
+              placeholder="Type text here to convert to audio..."
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              style={{ width: '100%', height: '200px', resize: 'vertical' }}
             />
           </div>
 
-          <div style={{ display: 'flex', gap: '10px' }}>
-            <div style={{ flex: 1 }}>
-              <label style={{ display: 'block', fontWeight: 'bold' }}>Start Time:</label>
-              <input 
-                type="time" 
-                value={startTime} 
-                onChange={(e) => setStartTime(e.target.value)}
-                style={{ width: '100%', padding: '8px' }}
+          {/* RIGHT: DATE & TIME PICKERS */}
+          <div style={rightColumnStyle}>
+            
+            {/* Date */}
+            <div>
+              <label style={labelStyle}>Date:</label>
+              <DatePicker 
+                selected={date} 
+                onChange={(d) => setDate(d)}
+                dateFormat="MMMM d, yyyy"
+                className="custom-input"
               />
             </div>
-            <div style={{ flex: 1 }}>
-              <label style={{ display: 'block', fontWeight: 'bold' }}>End Time:</label>
-              <input 
-                type="time" 
-                value={endTime} 
-                onChange={(e) => setEndTime(e.target.value)}
-                style={{ width: '100%', padding: '8px' }}
+
+            {/* Start Time */}
+            <div>
+              <label style={labelStyle}>Start Time:</label>
+              <DatePicker
+                selected={startTime}
+                onChange={(d) => setStartTime(d)}
+                showTimeSelect
+                showTimeSelectOnly
+                timeIntervals={15}
+                timeCaption="Time"
+                dateFormat="h:mm aa"
+                className="custom-input"
               />
             </div>
+
+            {/* End Time */}
+            <div>
+              <label style={labelStyle}>End Time:</label>
+              <DatePicker
+                selected={endTime}
+                onChange={(d) => setEndTime(d)}
+                showTimeSelect
+                showTimeSelectOnly
+                timeIntervals={15}
+                timeCaption="Time"
+                dateFormat="h:mm aa"
+                className="custom-input"
+              />
+            </div>
+
           </div>
         </div>
 
+        {/* BUTTONS & RESULTS */}
         <div className="button-container">
           <button onClick={handleConvert} disabled={loading}>
             {loading ? 'Processing...' : 'Generate JSON & Audio'}
