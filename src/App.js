@@ -107,9 +107,7 @@ function App() {
   return (
     <div className="App">
       <div className="container" style={{ maxWidth: '900px' }}> {/* Increased max-width for side-by-side */}
-        <h1>Text to Speech</h1>
-        <p>Powered by Azure & DigitalOcean</p>
-
+        <h1>MagRemind App</h1>
         {/* SIDE BY SIDE CONTAINER */}
         <div style={layoutStyle}>
           
