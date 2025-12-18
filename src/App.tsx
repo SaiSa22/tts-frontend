@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
+// We import the component, but we will define the interface locally to avoid type conflicts during the build
 import { ContinuousCalendar, CalendarEvent } from './ContinuousCalendar';
 import './App.css'; 
 
@@ -9,7 +10,10 @@ function App() {
   const [date, setDate] = useState<Date>(new Date());
   const [startTime, setStartTime] = useState<Date>(new Date());
   const [endTime, setEndTime] = useState<Date>(new Date());
+  
+  // State for events
   const [events, setEvents] = useState<CalendarEvent[]>([]);
+  
   const [audioUrl, setAudioUrl] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>('');
@@ -69,25 +73,43 @@ function App() {
     };
     const start = getUnix(date, startTime);
     const end = getUnix(date, endTime);
+    
+    // We create a visual event for the manual entry too!
+    const manualEvent: CalendarEvent = {
+        id: Date.now().toString(),
+        date: date.toLocaleDateString('en-CA'),
+        title: "Manual Alert",
+        message: text,
+        startTime: startTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
+        endTime: endTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
+    };
+    
+    setEvents([...events, manualEvent]);
     await sendToBackend(text, start, end);
   };
 
   const handleModalEvent = async (newEvent: CalendarEvent) => {
     setEvents([...events, newEvent]);
-    const startDateTime = new Date(`${newEvent.date}T${newEvent.startTime || '09:00'}`);
-    const endDateTime = new Date(`${newEvent.date}T${newEvent.endTime || '10:00'}`);
+    
+    // Safety check for optional time fields
+    const sTime = newEvent.startTime || '09:00';
+    const eTime = newEvent.endTime || '10:00';
+
+    const startDateTime = new Date(`${newEvent.date}T${sTime}`);
+    const endDateTime = new Date(`${newEvent.date}T${eTime}`);
+    
     const startUnix = Math.floor(startDateTime.getTime() / 1000);
     const endUnix = Math.floor(endDateTime.getTime() / 1000);
+    
     if (newEvent.message) {
       await sendToBackend(newEvent.message, startUnix, endUnix);
     }
   };
 
-  // NEW: Handle Delete
+  // Handle Delete
   const handleDeleteEvent = (eventId: string) => {
     const updatedEvents = events.filter(e => e.id !== eventId);
     setEvents(updatedEvents);
-    // Optional: Add logic here to call an API to delete the alert from the server if needed
   };
 
   const handleDateSelect = (day: number, month: number, year: number) => {
@@ -160,39 +182,4 @@ function App() {
             onClick={handleManualConvert} 
             disabled={loading}
             className={`w-full py-4 text-lg font-bold text-white rounded-xl shadow-md transition-all active:scale-95 ${
-              loading ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 hover:shadow-xl'
-            }`}
-          >
-            {loading ? 'Processing...' : 'Create Manual Alert'}
-          </button>
-          
-          {error && <div className="p-3 bg-red-100 text-red-700 rounded-lg text-center border border-red-200 text-sm">{error}</div>}
-        </div>
-
-        <div className="flex-grow h-full flex flex-col min-w-0">
-          <div className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden h-full flex flex-col">
-              <div className="flex-none px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
-                <label className="font-bold text-lg text-gray-800">2. Select Date</label>
-                <span className="bg-blue-600 text-white py-1 px-4 rounded-full text-sm font-bold shadow-sm">
-                  {date.toDateString()}
-                </span>
-              </div>
-              
-              <div className="flex-grow relative h-full bg-white overflow-hidden">
-                <ContinuousCalendar 
-                    onClick={handleDateSelect} 
-                    events={events}             
-                    onAddEvent={handleModalEvent}
-                    onDeleteEvent={handleDeleteEvent} // NEW: Pass Delete Handler
-                    selectedDate={date}         
-                />
-              </div>
-          </div>
-        </div>
-
-      </div>
-    </div>
-  );
-}
-
-export default App;
+              loading ? 'bg-gray-400 cursor-
