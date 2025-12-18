@@ -30,9 +30,7 @@ function App() {
     return Math.floor(combined.getTime() / 1000);
   };
 
-  // Handler for the new Calendar Component
   const handleDateSelect = (day: number, month: number, year: number) => {
-    // Create new date object from the calendar click (Month is 0-indexed)
     const newDate = new Date(year, month, day);
     setDate(newDate);
   };
@@ -83,110 +81,106 @@ function App() {
   };
 
   return (
-    <div className="App min-h-screen bg-gray-50 p-8">
-      <div className="container mx-auto max-w-6xl">
-        <h1 className="text-3xl font-bold mb-2">Text to Speech</h1>
-        <p className="text-gray-600 mb-8">Powered by Azure & DigitalOcean</p>
-
-        {/* MAIN LAYOUT: Flexbox for Side-by-Side */}
-        <div className="flex flex-col lg:flex-row gap-8 items-start justify-center">
-          
-          {/* LEFT COLUMN: Text Input */}
-          <div className="w-full lg:w-1/2 flex flex-col">
-            <label className="font-bold mb-2 text-left">Message:</label>
-            <textarea 
-              placeholder="Type text here to convert to audio..."
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              className="w-full p-4 border border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none resize-none"
-              style={{ height: '500px' }} 
-            />
+    // UPDATED: Added 'overflow-hidden' to body to prevent double scrollbars if needed
+    <div className="App min-h-screen bg-gray-50 p-4 lg:p-8">
+      
+      {/* UPDATED: Changed max-width to 'max-w-[1600px]' to use more screen real estate */}
+      <div className="container mx-auto max-w-[1600px]">
+        
+        <div className="flex justify-between items-center mb-6">
+          <div>
+            <h1 className="text-3xl font-bold">Text to Speech Alert System</h1>
+            <p className="text-gray-600">Powered by Azure & DigitalOcean</p>
           </div>
+          {/* Audio Player moved to top-right for easier access */}
+          {audioUrl && (
+             <div className="flex items-center gap-4 bg-white p-2 rounded-lg shadow border border-green-200">
+                <span className="text-green-700 font-bold px-2">✓ Ready!</span>
+                <audio controls src={audioUrl} className="h-8 w-64" />
+                <a href={audioUrl} target="_blank" rel="noreferrer" className="text-sm text-blue-600 hover:underline">Download</a>
+             </div>
+          )}
+        </div>
 
-          {/* RIGHT COLUMN: Calendar & Time */}
-          <div className="w-full lg:w-1/2 flex flex-col gap-6">
-            
-            {/* 1. The Continuous Calendar */}
-            <div className="w-full">
-               <label className="font-bold mb-2 block text-left">
-                 Selected Date: {date.toDateString()}
-               </label>
-               {/* We give the calendar a fixed height wrapper so it scrolls internally */}
-               <div className="h-[400px] border border-gray-200 rounded-2xl shadow-sm overflow-hidden relative">
-                  <ContinuousCalendar onClick={handleDateSelect} />
-               </div>
+        {/* MAIN LAYOUT */}
+        <div className="flex flex-col lg:flex-row gap-6 items-start justify-center">
+          
+          {/* LEFT COLUMN: Text Input (Reduced to 25% width) */}
+          <div className="w-full lg:w-1/4 flex flex-col gap-4">
+            <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 h-full">
+              <label className="font-bold mb-2 block text-gray-700">1. Enter Message</label>
+              <textarea 
+                placeholder="Type text here..."
+                value={text}
+                onChange={(e) => setText(e.target.value)}
+                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none resize-none bg-gray-50"
+                style={{ height: '400px' }} 
+              />
             </div>
 
-            {/* 2. Time Pickers (Using React-DatePicker for specific time selection) */}
-            <div className="flex gap-4">
-              <div className="flex-1">
-                <label className="font-bold mb-1 block text-sm">Start Time:</label>
-                <DatePicker
-                  selected={startTime}
-                  // FIX IS HERE: We accept 'd' which might be null, check if it exists, then set state
-                  onChange={(d: Date | null) => d && setStartTime(d)}
-                  showTimeSelect
-                  showTimeSelectOnly
-                  timeIntervals={15}
-                  timeCaption="Time"
-                  dateFormat="h:mm aa"
-                  className="w-full p-2 border border-gray-300 rounded-lg text-center cursor-pointer"
-                />
-              </div>
-
-              <div className="flex-1">
-                <label className="font-bold mb-1 block text-sm">End Time:</label>
-                <DatePicker
-                  selected={endTime}
-                  // FIX IS HERE: Same fix for End Time
-                  onChange={(d: Date | null) => d && setEndTime(d)}
-                  showTimeSelect
-                  showTimeSelectOnly
-                  timeIntervals={15}
-                  timeCaption="Time"
-                  dateFormat="h:mm aa"
-                  className="w-full p-2 border border-gray-300 rounded-lg text-center cursor-pointer"
-                />
-              </div>
+             {/* Time Pickers moved to Left Column to save space for Calendar */}
+             <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
+                <label className="font-bold mb-4 block text-gray-700">3. Select Time</label>
+                <div className="flex flex-col gap-3">
+                  <div>
+                    <span className="text-xs font-bold text-gray-500 uppercase">Start</span>
+                    <DatePicker
+                      selected={startTime}
+                      onChange={(d: Date | null) => d && setStartTime(d)}
+                      showTimeSelect
+                      showTimeSelectOnly
+                      timeIntervals={15}
+                      timeCaption="Time"
+                      dateFormat="h:mm aa"
+                      className="w-full p-2 border border-gray-300 rounded-lg text-center font-mono"
+                    />
+                  </div>
+                  <div>
+                    <span className="text-xs font-bold text-gray-500 uppercase">End</span>
+                    <DatePicker
+                      selected={endTime}
+                      onChange={(d: Date | null) => d && setEndTime(d)}
+                      showTimeSelect
+                      showTimeSelectOnly
+                      timeIntervals={15}
+                      timeCaption="Time"
+                      dateFormat="h:mm aa"
+                      className="w-full p-2 border border-gray-300 rounded-lg text-center font-mono"
+                    />
+                  </div>
+                </div>
             </div>
 
-            {/* 3. Action Button */}
             <button 
               onClick={handleConvert} 
               disabled={loading}
-              className={`w-full py-4 text-lg font-bold text-white rounded-xl shadow-md transition-all ${
-                loading ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 hover:shadow-lg'
+              className={`w-full py-4 text-xl font-bold text-white rounded-xl shadow-md transition-all ${
+                loading ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'
               }`}
             >
               {loading ? 'Processing...' : 'Create Alert'}
             </button>
+            {error && <div className="text-red-500 text-center text-sm">{error}</div>}
           </div>
+
+          {/* RIGHT COLUMN: Calendar (Expanded to 75% width) */}
+          <div className="w-full lg:w-3/4 flex flex-col">
+            <div className="bg-white p-1 rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
+               <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center">
+                  <label className="font-bold text-lg text-gray-800">2. Select Date</label>
+                  <span className="bg-blue-100 text-blue-800 py-1 px-3 rounded-full text-sm font-semibold">
+                    Selected: {date.toDateString()}
+                  </span>
+               </div>
+               
+               {/* HEIGHT INCREASED: h-[800px] */}
+               <div className="h-[800px] relative">
+                  <ContinuousCalendar onClick={handleDateSelect} />
+               </div>
+            </div>
+          </div>
+
         </div>
-
-        {/* ERROR MESSAGE */}
-        {error && (
-          <div className="mt-6 p-4 bg-red-100 text-red-700 rounded-lg border border-red-200">
-            Error: {error}
-          </div>
-        )}
-
-        {/* AUDIO PLAYER RESULT */}
-        {audioUrl && (
-          <div className="mt-8 p-6 bg-white rounded-xl shadow-lg border border-gray-100 text-center">
-            <h3 className="text-xl font-bold mb-4">Audio Ready:</h3>
-            <audio controls autoPlay src={audioUrl} className="w-full mb-4">
-              Your browser does not support audio.
-            </audio>
-            <a 
-              href={audioUrl} 
-              target="_blank" 
-              rel="noreferrer" 
-              className="inline-block px-6 py-2 bg-gray-800 text-white rounded-lg hover:bg-black transition-colors"
-            >
-              Download MP3 File
-            </a>
-          </div>
-        )}
       </div>
     </div>
   );
