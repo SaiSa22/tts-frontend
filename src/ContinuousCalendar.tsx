@@ -1,12 +1,13 @@
 'use client';
 
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState, useLayoutEffect } from 'react';
 
 const daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
 export interface CalendarEvent {
-  date: string; // "YYYY-MM-DD"
+  id: string; // NEW: Unique ID for selection/deletion
+  date: string;
   title: string;
   message?: string;
   startTime?: string;
@@ -17,19 +18,21 @@ interface ContinuousCalendarProps {
   onClick?: (_day: number, _month: number, _year: number) => void;
   events?: CalendarEvent[];
   onAddEvent?: (event: CalendarEvent) => void;
-  selectedDate?: Date | null; // NEW: We need to know the selected date to enable the button
+  onDeleteEvent?: (eventId: string) => void; // NEW: Handler for deletion
+  selectedDate?: Date | null;
 }
 
-export const ContinuousCalendar: React.FC<ContinuousCalendarProps> = ({ onClick, events = [], onAddEvent, selectedDate }) => {
-  const today = new Date();
+export const ContinuousCalendar: React.FC<ContinuousCalendarProps> = ({ onClick, events = [], onAddEvent, onDeleteEvent, selectedDate }) => {
   const dayRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const containerRef = useRef<HTMLDivElement>(null);
+  
   const [year, setYear] = useState<number>(new Date().getFullYear());
   const [selectedMonth, setSelectedMonth] = useState<number>(0);
-  
+  const [pendingScroll, setPendingScroll] = useState<{ m: number, d: number } | null>(null);
+  const [selectedEventId, setSelectedEventId] = useState<string | null>(null); // NEW: Track selected bar
+
   // MODAL STATE
   const [isModalOpen, setIsModalOpen] = useState(false);
-  
-  // Form Fields
   const [title, setTitle] = useState('');
   const [message, setMessage] = useState('');
   const [startT, setStartT] = useState('09:00');
@@ -37,80 +40,80 @@ export const ContinuousCalendar: React.FC<ContinuousCalendarProps> = ({ onClick,
 
   const monthOptions = monthNames.map((month, index) => ({ name: month, value: `${index}` }));
 
-  // --- MODAL HANDLERS ---
-  const handleOpenModal = () => {
-    if (selectedDate) {
-      setIsModalOpen(true);
+  // --- SCROLL LOGIC ---
+  const executeScroll = (monthIndex: number, dayIndex: number) => {
+    const targetDayIndex = dayRefs.current.findIndex(
+      (ref) => ref && ref.getAttribute('data-month') === `${monthIndex}` && ref.getAttribute('data-day') === `${dayIndex}`,
+    );
+    const targetElement = dayRefs.current[targetDayIndex];
+    const container = containerRef.current;
+
+    if (targetElement && container) {
+      const elementRect = targetElement.getBoundingClientRect();
+      const containerRect = container.getBoundingClientRect();
+      const offset = elementRect.top - containerRect.top - (containerRect.height / 2) + (elementRect.height / 2);
+      container.scrollTo({ top: container.scrollTop + offset, behavior: 'smooth' });
     }
   };
 
+  useLayoutEffect(() => {
+    if (pendingScroll) {
+      executeScroll(pendingScroll.m, pendingScroll.d);
+      setPendingScroll(null);
+    }
+  }, [pendingScroll, year]);
+
+  const handleMonthChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
+    const monthIndex = parseInt(event.target.value, 10);
+    setSelectedMonth(monthIndex);
+    setPendingScroll({ m: monthIndex, d: 1 });
+  };
+
+  const handleTodayClick = () => {
+    const t = new Date();
+    setYear(t.getFullYear());
+    setPendingScroll({ m: t.getMonth(), d: t.getDate() });
+  };
+
+  const handlePrevYear = () => setYear((prev) => prev - 1);
+  const handleNextYear = () => setYear((prev) => prev + 1);
+
+  // --- EVENT HANDLERS ---
+  const handleEventClick = (e: React.MouseEvent, eventId: string) => {
+    e.stopPropagation(); // Stop bubbling so we don't select the day underneath
+    setSelectedEventId(eventId === selectedEventId ? null : eventId); // Toggle selection
+  };
+
+  const handleDeleteClick = () => {
+    if (selectedEventId && onDeleteEvent) {
+      onDeleteEvent(selectedEventId);
+      setSelectedEventId(null); // Clear selection after delete
+    }
+  };
+
+  const handleOpenModal = () => { if (selectedDate) setIsModalOpen(true); };
   const handleCloseModal = () => {
     setIsModalOpen(false);
-    // Reset form
-    setTitle('');
-    setMessage('');
-    setStartT('09:00');
-    setEndT('10:00');
+    setTitle(''); setMessage(''); setStartT('09:00'); setEndT('10:00');
   };
 
   const handleSubmitEvent = (e: React.FormEvent) => {
     e.preventDefault();
     if (onAddEvent && selectedDate) {
       onAddEvent({
-        date: selectedDate.toLocaleDateString('en-CA'), // Keep YYYY-MM-DD format
-        title: title,
-        message: message,
-        startTime: startT,
-        endTime: endT
+        id: Date.now().toString(), // Generate ID
+        date: selectedDate.toLocaleDateString('en-CA'),
+        title, message, startTime: startT, endTime: endT
       });
       handleCloseModal();
     }
   };
 
-  // ... (Scroll logic remains same) ...
-  const scrollToDay = (monthIndex: number, dayIndex: number) => {
-    const targetDayIndex = dayRefs.current.findIndex(
-      (ref) => ref && ref.getAttribute('data-month') === `${monthIndex}` && ref.getAttribute('data-day') === `${dayIndex}`,
-    );
-    const targetElement = dayRefs.current[targetDayIndex];
-    if (targetDayIndex !== -1 && targetElement) {
-      const container = document.querySelector('.calendar-container');
-      const elementRect = targetElement.getBoundingClientRect();
-      const is2xl = window.matchMedia('(min-width: 1536px)').matches;
-      const offsetFactor = is2xl ? 3 : 2.5;
-
-      if (container) {
-        const containerRect = container.getBoundingClientRect();
-        const offset = elementRect.top - containerRect.top - (containerRect.height / offsetFactor) + (elementRect.height / 2);
-        container.scrollTo({ top: container.scrollTop + offset, behavior: 'smooth' });
-      } else {
-        const offset = window.scrollY + elementRect.top - (window.innerHeight / offsetFactor) + (elementRect.height / 2);
-        window.scrollTo({ top: offset, behavior: 'smooth' });
-      }
-    }
-  };
-
-  const handlePrevYear = () => setYear((prevYear) => prevYear - 1);
-  const handleNextYear = () => setYear((prevYear) => prevYear + 1);
-
-  const handleMonthChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
-    const monthIndex = parseInt(event.target.value, 10);
-    setSelectedMonth(monthIndex);
-    scrollToDay(monthIndex, 1);
-  };
-
-  const handleTodayClick = () => {
-    setYear(today.getFullYear());
-    scrollToDay(today.getMonth(), today.getDate());
-  };
-
   const handleDayClick = (day: number, month: number, year: number) => {
-    if (!onClick) { return; }
-    if (month < 0) {
-      onClick(day, 11, year - 1);
-    } else {
-      onClick(day, month, year);
-    }
+    // If clicking empty space in day, deselect event
+    setSelectedEventId(null); 
+    if (!onClick) return;
+    onClick(day, month < 0 ? 11 : month, month < 0 ? year - 1 : year);
   }
 
   const getEventsForDay = (d: number, m: number, y: number) => {
@@ -118,53 +121,45 @@ export const ContinuousCalendar: React.FC<ContinuousCalendarProps> = ({ onClick,
     return events.filter(e => e.date === dateStr);
   };
 
+  // --- CALENDAR RENDER ---
   const generateCalendar = useMemo(() => {
     const today = new Date();
+    dayRefs.current = [];
 
-    const daysInYear = (): { month: number; day: number }[] => {
-      const daysInYear = [];
-      const startDayOfWeek = new Date(year, 0, 1).getDay();
+    const daysInYear = [];
+    const startDayOfWeek = new Date(year, 0, 1).getDay();
 
-      if (startDayOfWeek < 6) {
-        for (let i = 0; i < startDayOfWeek; i++) {
-          daysInYear.push({ month: -1, day: 32 - startDayOfWeek + i });
-        }
+    if (startDayOfWeek < 6) {
+      for (let i = 0; i < startDayOfWeek; i++) {
+        daysInYear.push({ month: -1, day: 32 - startDayOfWeek + i });
       }
-
-      for (let month = 0; month < 12; month++) {
-        const daysInMonth = new Date(year, month + 1, 0).getDate();
-
-        for (let day = 1; day <= daysInMonth; day++) {
-          daysInYear.push({ month, day });
-        }
+    }
+    for (let month = 0; month < 12; month++) {
+      const daysInMonth = new Date(year, month + 1, 0).getDate();
+      for (let day = 1; day <= daysInMonth; day++) {
+        daysInYear.push({ month, day });
       }
-
-      const lastWeekDayCount = daysInYear.length % 7;
-      if (lastWeekDayCount > 0) {
-        const extraDaysNeeded = 7 - lastWeekDayCount;
-        for (let day = 1; day <= extraDaysNeeded; day++) {
-          daysInYear.push({ month: 0, day });
-        }
+    }
+    const lastWeekDayCount = daysInYear.length % 7;
+    if (lastWeekDayCount > 0) {
+      const extra = 7 - lastWeekDayCount;
+      for (let day = 1; day <= extra; day++) {
+        daysInYear.push({ month: 0, day });
       }
-    
-      return daysInYear;
-    };
-
-    const calendarDays = daysInYear();
-
-    const calendarWeeks = [];
-    for (let i = 0; i < calendarDays.length; i += 7) {
-      calendarWeeks.push(calendarDays.slice(i, i + 7));
     }
 
-    const calendar = calendarWeeks.map((week, weekIndex) => (
+    const calendarWeeks = [];
+    for (let i = 0; i < daysInYear.length; i += 7) {
+      calendarWeeks.push(daysInYear.slice(i, i + 7));
+    }
+
+    return calendarWeeks.map((week, weekIndex) => (
       <div className="flex w-full" key={`week-${weekIndex}`}>
         {week.map(({ month, day }, dayIndex) => {
-          const index = weekIndex * 7 + dayIndex;
-          const isNewMonth = index === 0 || calendarDays[index - 1].month !== month;
+          const globalIndex = weekIndex * 7 + dayIndex;
+          const isNewMonth = globalIndex === 0 || daysInYear[globalIndex - 1].month !== month;
           const isToday = today.getMonth() === month && today.getDate() === day && today.getFullYear() === year;
           
-          // Check for Selection
           const isSelected = selectedDate && 
                              selectedDate.getDate() === day && 
                              selectedDate.getMonth() === month && 
@@ -174,12 +169,11 @@ export const ContinuousCalendar: React.FC<ContinuousCalendarProps> = ({ onClick,
 
           return (
             <div
-              key={`${month}-${day}`}
-              ref={(el) => { dayRefs.current[index] = el; }}
+              key={`${month}-${day}-${globalIndex}`}
+              ref={(el) => { if (el) dayRefs.current[globalIndex] = el; }}
               data-month={month}
               data-day={day}
               onClick={() => handleDayClick(day, month, year)}
-              // UPDATED: Added ring-blue-600 when selected
               className={`relative z-10 m-[-0.5px] group aspect-square w-full grow cursor-pointer rounded-xl border font-medium transition-all hover:z-20 hover:border-cyan-400 
                 ${isSelected ? 'ring-2 ring-blue-600 bg-blue-50 z-30' : ''}
                 sm:-m-px sm:size-20 sm:rounded-2xl sm:border-2 lg:size-36 lg:rounded-3xl 2xl:size-40`}
@@ -188,13 +182,25 @@ export const ContinuousCalendar: React.FC<ContinuousCalendarProps> = ({ onClick,
                 {day}
               </span>
               
-              {/* Event Bars */}
-              <div className="absolute top-8 left-1 right-1 flex flex-col gap-1 overflow-hidden">
-                {dayEvents.map((evt, idx) => (
-                  <div key={idx} className="bg-blue-100 text-blue-700 text-[10px] sm:text-xs px-1 rounded truncate border border-blue-200 shadow-sm">
-                    {evt.title}
-                  </div>
-                ))}
+              {/* UPDATED: Changed top-8 to top-10 sm:top-12 to avoid overlap */}
+              <div className="absolute top-10 sm:top-12 left-1 right-1 flex flex-col gap-1 overflow-hidden z-40">
+                {dayEvents.map((evt) => {
+                   const isEvtSelected = evt.id === selectedEventId;
+                   return (
+                    <div 
+                      key={evt.id} 
+                      onClick={(e) => handleEventClick(e, evt.id)}
+                      className={`
+                        text-[10px] sm:text-xs px-1 rounded truncate border shadow-sm transition-all
+                        ${isEvtSelected 
+                           ? 'bg-blue-600 text-white border-blue-700 ring-2 ring-blue-300' 
+                           : 'bg-blue-100 text-blue-700 border-blue-200 hover:bg-blue-200'}
+                      `}
+                    >
+                      {evt.title}
+                    </div>
+                   );
+                })}
               </div>
 
               {isNewMonth && (
@@ -207,13 +213,12 @@ export const ContinuousCalendar: React.FC<ContinuousCalendarProps> = ({ onClick,
         })}
       </div>
     ));
+  }, [year, events, selectedDate, selectedEventId]);
 
-    return calendar;
-  }, [year, events, selectedDate]); // Added selectedDate dependency
-
-  // ... (Effect logic remains same) ...
+  // --- OBSERVER ---
   useEffect(() => {
-    const calendarContainer = document.querySelector('.calendar-container');
+    const container = containerRef.current;
+    if (!container) return;
     const observer = new IntersectionObserver((entries) => {
       entries.forEach((entry) => {
         if (entry.isIntersecting) {
@@ -221,25 +226,25 @@ export const ContinuousCalendar: React.FC<ContinuousCalendarProps> = ({ onClick,
           setSelectedMonth(month);
         }
       });
-    }, { root: calendarContainer, rootMargin: '-75% 0px -25% 0px', threshold: 0 });
+    }, { root: container, rootMargin: '-75% 0px -25% 0px', threshold: 0 });
 
     dayRefs.current.forEach((ref) => {
       if (ref && ref.getAttribute('data-day') === '15') observer.observe(ref);
     });
     return () => observer.disconnect();
-  }, []);
+  }, [year]);
 
   return (
-    <div className="relative no-scrollbar calendar-container max-h-full overflow-y-scroll rounded-t-2xl bg-white pb-10 text-slate-800 shadow-xl">
+    <div ref={containerRef} className="relative no-scrollbar calendar-container max-h-full overflow-y-scroll rounded-t-2xl bg-white pb-10 text-slate-800 shadow-xl">
       <div className="sticky -top-px z-50 w-full rounded-t-2xl bg-white px-5 pt-7 sm:px-8 sm:pt-8">
         <div className="mb-4 flex w-full flex-wrap items-center justify-between gap-6">
-          <div className="flex flex-wrap gap-2 sm:gap-3">
+          <div className="flex flex-wrap gap-2 sm:gap-3 items-center">
             <Select name="month" value={`${selectedMonth}`} options={monthOptions} onChange={handleMonthChange} />
             <button onClick={handleTodayClick} type="button" className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-900 hover:bg-gray-100 lg:px-5 lg:py-2.5">
               Today
             </button>
             
-            {/* UPDATED ADD EVENT BUTTON */}
+            {/* ADD EVENT BUTTON */}
             <button 
               type="button" 
               onClick={handleOpenModal}
@@ -251,6 +256,20 @@ export const ContinuousCalendar: React.FC<ContinuousCalendarProps> = ({ onClick,
             >
               + Add Event
             </button>
+
+            {/* DELETE BUTTON (Conditionally Rendered) */}
+            {selectedEventId && (
+               <button
+                 type="button"
+                 onClick={handleDeleteClick}
+                 className="flex items-center justify-center p-2 text-white bg-red-500 hover:bg-red-600 rounded-lg sm:rounded-xl transition-all shadow-md animate-in fade-in zoom-in duration-200"
+                 title="Delete Selected Event"
+               >
+                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                   <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+                 </svg>
+               </button>
+            )}
 
           </div>
           <div className="flex w-fit items-center justify-between">
@@ -279,12 +298,9 @@ export const ContinuousCalendar: React.FC<ContinuousCalendarProps> = ({ onClick,
         {generateCalendar}
       </div>
 
-      {/* --- POPUP MODAL --- */}
       {isModalOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm">
           <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-lg mx-4 animate-in fade-in zoom-in duration-200">
-            
-            {/* Modal Header showing selected Day/Date */}
             <div className="border-b border-gray-100 pb-4 mb-4">
                <h2 className="text-2xl font-bold text-gray-800">
                  {selectedDate?.toLocaleDateString('en-US', { weekday: 'long' })}
@@ -293,112 +309,48 @@ export const ContinuousCalendar: React.FC<ContinuousCalendarProps> = ({ onClick,
                  {selectedDate?.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
                </p>
             </div>
-
             <form onSubmit={handleSubmitEvent}>
-              {/* Alert Title */}
               <div className="mb-4">
                 <label className="block text-sm font-bold text-gray-700 mb-1">Alert Title</label>
-                <input 
-                  type="text" 
-                  value={title} 
-                  onChange={(e) => setTitle(e.target.value)}
+                <input type="text" value={title} onChange={(e) => setTitle(e.target.value)}
                   className="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none bg-gray-50"
-                  placeholder="e.g. Morning Wake Up"
-                  autoFocus
-                  required
-                />
+                  placeholder="e.g. Morning Wake Up" autoFocus required />
               </div>
-
-              {/* Start & End Time (Side by Side) */}
               <div className="flex gap-4 mb-4">
                  <div className="flex-1">
                     <label className="block text-sm font-bold text-gray-700 mb-1">Start Time</label>
-                    <input 
-                      type="time" 
-                      value={startT} 
-                      onChange={(e) => setStartT(e.target.value)}
-                      className="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none bg-gray-50"
-                      required
-                    />
+                    <input type="time" value={startT} onChange={(e) => setStartT(e.target.value)}
+                      className="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none bg-gray-50" required />
                  </div>
                  <div className="flex-1">
                     <label className="block text-sm font-bold text-gray-700 mb-1">End Time</label>
-                    <input 
-                      type="time" 
-                      value={endT} 
-                      onChange={(e) => setEndT(e.target.value)}
-                      className="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none bg-gray-50"
-                      required
-                    />
+                    <input type="time" value={endT} onChange={(e) => setEndT(e.target.value)}
+                      className="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none bg-gray-50" required />
                  </div>
               </div>
-
-              {/* Alert Message */}
               <div className="mb-6">
                 <label className="block text-sm font-bold text-gray-700 mb-1">Alert Message</label>
-                <textarea 
-                  value={message} 
-                  onChange={(e) => setMessage(e.target.value)}
+                <textarea value={message} onChange={(e) => setMessage(e.target.value)}
                   className="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none resize-none bg-gray-50 h-24"
-                  placeholder="The text that will be converted to speech..."
-                  required
-                />
+                  placeholder="The text that will be converted to speech..." required />
               </div>
-
-              {/* Actions */}
               <div className="flex justify-end gap-3 pt-2 border-t border-gray-100">
-                <button 
-                  type="button" 
-                  onClick={handleCloseModal}
-                  className="px-5 py-2.5 text-gray-700 font-medium hover:bg-gray-100 rounded-xl transition-colors"
-                >
-                  Cancel
-                </button>
-                <button 
-                  type="submit" 
-                  className="px-6 py-2.5 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition-colors shadow-lg"
-                >
-                  Create Alert
-                </button>
+                <button type="button" onClick={handleCloseModal} className="px-5 py-2.5 text-gray-700 font-medium hover:bg-gray-100 rounded-xl transition-colors">Cancel</button>
+                <button type="submit" className="px-6 py-2.5 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition-colors shadow-lg">Create Alert</button>
               </div>
             </form>
           </div>
         </div>
       )}
-
     </div>
   );
 };
 
-export interface SelectProps {
-  name: string;
-  value: string;
-  label?: string;
-  options: { 'name': string, 'value': string }[];
-  onChange: (_event: React.ChangeEvent<HTMLSelectElement>) => void;
-  className?: string;
-}
-
 export const Select = ({ name, value, label, options = [], onChange, className }: SelectProps) => (
   <div className={`relative ${className}`}>
-    {label && (
-      <label htmlFor={name} className="mb-2 block font-medium text-slate-800">
-        {label}
-      </label>
-    )}
-    <select
-      id={name}
-      name={name}
-      value={value}
-      onChange={onChange}
-      className="cursor-pointer rounded-lg border border-gray-300 bg-white py-1.5 pl-2 pr-6 text-sm font-medium text-gray-900 hover:bg-gray-100 sm:rounded-xl sm:py-2.5 sm:pl-3 sm:pr-8"
-      required
-    >
-      {options.map((option) => (
-        <option key={option.value} value={option.value}>
-          {option.name}
-        </option>
-      ))}
+    {label && <label htmlFor={name} className="mb-2 block font-medium text-slate-800">{label}</label>}
+    <select id={name} name={name} value={value} onChange={onChange} className="cursor-pointer rounded-lg border border-gray-300 bg-white py-1.5 pl-2 pr-6 text-sm font-medium text-gray-900 hover:bg-gray-100 sm:rounded-xl sm:py-2.5 sm:pl-3 sm:pr-8" required>
+      {options.map((option) => <option key={option.value} value={option.value}>{option.name}</option>)}
     </select>
     <span className="pointer-events-none absolute inset-y-0 right-0 ml-3 flex items-center pr-1 sm:pr-2">
       <svg className="size-5 text-slate-600" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
