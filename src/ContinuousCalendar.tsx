@@ -5,7 +5,6 @@ import React, { useEffect, useMemo, useRef, useState, useLayoutEffect } from 're
 const daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
-// CRITICAL UPDATE: 'id' is defined here
 export interface CalendarEvent {
   id: string; 
   date: string;
@@ -342,6 +341,16 @@ export const ContinuousCalendar: React.FC<ContinuousCalendarProps> = ({ onClick,
     </div>
   );
 };
+
+// FIX IS HERE: Added the missing Interface definition
+export interface SelectProps {
+  name: string;
+  value: string;
+  label?: string;
+  options: { 'name': string, 'value': string }[];
+  onChange: (_event: React.ChangeEvent<HTMLSelectElement>) => void;
+  className?: string;
+}
 
 export const Select = ({ name, value, label, options = [], onChange, className }: SelectProps) => (
   <div className={`relative ${className}`}>
