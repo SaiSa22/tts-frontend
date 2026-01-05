@@ -30,7 +30,7 @@ export const ContinuousCalendar: React.FC<ContinuousCalendarProps> = ({ onClick,
   const [selectedMonth, setSelectedMonth] = useState<number>(0);
   const [pendingScroll, setPendingScroll] = useState<{ m: number, d: number } | null>(null);
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
-  const [editingEventId, setEditingEventId] = useState<string | null>(null); // Track if editing
+  const [editingEventId, setEditingEventId] = useState<string | null>(null);
 
   // MODAL STATE
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -92,28 +92,33 @@ export const ContinuousCalendar: React.FC<ContinuousCalendarProps> = ({ onClick,
     }
   };
 
+  // --- FIXED: EDIT CLICK HANDLER ---
   const handleEditClick = () => {
     const evt = events.find(e => e.id === selectedEventId);
     if (evt && selectedDate) {
         // Pre-fill modal with event data
         setTitle(evt.title);
         setMessage(evt.message || '');
-        setStartT(evt.startTime || '09:00');
-        setEndT(evt.endTime || '10:00');
         
-        setEditingEventId(evt.id); // Set mode to Edit
+        // FIX: Slice first 5 chars to ensure "HH:mm" format (removes :ss if present)
+        const sTime = evt.startTime ? evt.startTime.slice(0, 5) : '09:00';
+        const eTime = evt.endTime ? evt.endTime.slice(0, 5) : '10:00';
+        
+        setStartT(sTime);
+        setEndT(eTime);
+        
+        setEditingEventId(evt.id);
         setIsModalOpen(true);
     }
   };
 
   const handleOpenModal = () => { 
     if (selectedDate) {
-        // Reset fields for new event
         setTitle(''); 
         setMessage(''); 
         setStartT('09:00'); 
         setEndT('10:00');
-        setEditingEventId(null); // Set mode to Create
+        setEditingEventId(null);
         setIsModalOpen(true); 
     }
   };
@@ -128,7 +133,7 @@ export const ContinuousCalendar: React.FC<ContinuousCalendarProps> = ({ onClick,
     e.preventDefault();
     if (onAddEvent && selectedDate) {
       onAddEvent({
-        id: editingEventId || Date.now().toString(), // Use existing ID if editing
+        id: editingEventId || Date.now().toString(),
         date: selectedDate.toLocaleDateString('en-CA'),
         title, 
         message, 
