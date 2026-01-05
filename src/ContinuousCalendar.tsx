@@ -30,6 +30,8 @@ export const ContinuousCalendar: React.FC<ContinuousCalendarProps> = ({ onClick,
   const [selectedMonth, setSelectedMonth] = useState<number>(0);
   const [pendingScroll, setPendingScroll] = useState<{ m: number, d: number } | null>(null);
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
+  
+  // Track which event is being edited (if any)
   const [editingEventId, setEditingEventId] = useState<string | null>(null);
 
   // MODAL STATE
@@ -92,7 +94,7 @@ export const ContinuousCalendar: React.FC<ContinuousCalendarProps> = ({ onClick,
     }
   };
 
-  // --- FIXED: EDIT CLICK HANDLER ---
+  // --- EDIT HANDLER (Fixes the time format issue) ---
   const handleEditClick = () => {
     const evt = events.find(e => e.id === selectedEventId);
     if (evt && selectedDate) {
@@ -100,25 +102,27 @@ export const ContinuousCalendar: React.FC<ContinuousCalendarProps> = ({ onClick,
         setTitle(evt.title);
         setMessage(evt.message || '');
         
-        // FIX: Slice first 5 chars to ensure "HH:mm" format (removes :ss if present)
-        const sTime = evt.startTime ? evt.startTime.slice(0, 5) : '09:00';
-        const eTime = evt.endTime ? evt.endTime.slice(0, 5) : '10:00';
+        // FIX: Database returns "HH:mm:ss". Input expects "HH:mm".
+        // We slice the first 5 characters to ensure compatibility.
+        const sTime = evt.startTime && evt.startTime.length >= 5 ? evt.startTime.slice(0, 5) : '09:00';
+        const eTime = evt.endTime && evt.endTime.length >= 5 ? evt.endTime.slice(0, 5) : '10:00';
         
         setStartT(sTime);
         setEndT(eTime);
         
-        setEditingEventId(evt.id);
+        setEditingEventId(evt.id); // Mark as editing
         setIsModalOpen(true);
     }
   };
 
   const handleOpenModal = () => { 
     if (selectedDate) {
+        // Reset for new event
         setTitle(''); 
         setMessage(''); 
         setStartT('09:00'); 
         setEndT('10:00');
-        setEditingEventId(null);
+        setEditingEventId(null); // Ensure we are NOT in edit mode
         setIsModalOpen(true); 
     }
   };
@@ -133,7 +137,7 @@ export const ContinuousCalendar: React.FC<ContinuousCalendarProps> = ({ onClick,
     e.preventDefault();
     if (onAddEvent && selectedDate) {
       onAddEvent({
-        id: editingEventId || Date.now().toString(),
+        id: editingEventId || Date.now().toString(), // Use existing ID if editing
         date: selectedDate.toLocaleDateString('en-CA'),
         title, 
         message, 
